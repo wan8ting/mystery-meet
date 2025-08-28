@@ -10,7 +10,7 @@ import {
 
 const ADMIN_EMAILS = ["wan8ting@gmail.com"];
 const AUTO_HIDE_REPORTS_THRESHOLD = 3;
-const MIN_AGE = 18;
+const MIN_AGE = 16;
 const MAX_INTRO_LEN = 280;
 const BANNED_WORDS = ["約炮","騷擾","仇恨","種族歧視","霸凌","毒品"];
 
