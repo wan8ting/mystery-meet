@@ -28,11 +28,11 @@ const BANNED_WORDS = ["約炮", "騷擾", "仇恨", "種族歧視", "霸凌", "�
 if (typeof window !== "undefined") {
   window.onunhandledrejection = (e) => {
     console.error("[Unhandled Rejection]", e.reason);
-    alert("發生未預期錯誤（可能是權限或網路問題）。請稍後重試。");
+    alert("發生未預期錯誤（可能是權限或網路問題）。請稍後再試。");
   };
 }
 
-/* ====== Error Boundary，避免整頁白掉 ====== */
+/* ====== Error Boundary ====== */
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -91,7 +91,7 @@ function timeSince(ts) {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
-/* ====== App ====== */
+/* ====== Root ====== */
 export default function Root() {
   return (
     <ErrorBoundary>
@@ -100,9 +100,10 @@ export default function Root() {
   );
 }
 
+/* ====== App（頁面切換：home / feed / submit / admin） ====== */
 function App() {
   const user = useAuth();
-  const [tab, setTab] = useState("feed");
+  const [page, setPage] = useState("home");
   const [posts, setPosts] = useState([]);
   const [pending, setPending] = useState([]);
 
@@ -138,7 +139,7 @@ function App() {
     const goIfAdminParam = () => {
       const hash = window.location.hash || "";
       const qs = new URLSearchParams(window.location.search);
-      if (hash === "#admin" || qs.get("admin") === "1") setTab("admin");
+      if (hash === "#admin" || qs.get("admin") === "1") setPage("admin");
     };
     goIfAdminParam();
     window.addEventListener("hashchange", goIfAdminParam);
@@ -147,70 +148,134 @@ function App() {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
-        <div className="max-w-md mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="font-semibold">匿名投稿板 · 七夕特別版</div>
-          <nav className="flex gap-3 font-semibold">
-            <button
-              className={
-                "px-6 py-3 rounded-full text-2xl " +
-                (tab === "feed"
-                  ? "bg-neutral-900 text-white"
-                  : "bg-neutral-200 hover:bg-neutral-300")
-              }
-              onClick={() => setTab("feed")}
+      {/* 入口頁不需要頂部列，其它頁保留簡潔標頭 */}
+      {page !== "home" && (
+        <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <div className="max-w-md mx-auto px-6 py-3 flex items-center justify-between">
+            <div
+              className="font-semibold cursor-pointer"
+              onClick={() => setPage("home")}
+              title="回入口"
             >
-              看投稿
-            </button>
-            <button
-              className={
-                "px-6 py-3 rounded-full text-2xl " +
-                (tab === "submit"
-                  ? "bg-neutral-900 text-white"
-                  : "bg-neutral-200 hover:bg-neutral-300")
-              }
-              onClick={() => setTab("submit")}
-            >
-              我要投稿
-            </button>
-            {isAdmin(user) && (
+              匿名投稿板 · 七夕特別版
+            </div>
+            <nav className="flex gap-2 text-sm">
               <button
                 className={
-                  "px-5 py-3 rounded-full text-2xl " +
-                  (tab === "admin"
-                    ? "bg-fuchsia-600 text-white"
+                  "px-3 py-2 rounded-full " +
+                  (page === "feed"
+                    ? "bg-neutral-900 text-white"
                     : "bg-neutral-200 hover:bg-neutral-300")
                 }
-                onClick={() => setTab("admin")}
+                onClick={() => setPage("feed")}
               >
-                審核區
+                看投稿
               </button>
-            )}
-          </nav>
-        </div>
-      </header>
+              <button
+                className={
+                  "px-3 py-2 rounded-full " +
+                  (page === "submit"
+                    ? "bg-neutral-900 text-white"
+                    : "bg-neutral-200 hover:bg-neutral-300")
+                }
+                onClick={() => setPage("submit")}
+              >
+                我要投稿
+              </button>
+              {isAdmin(user) && (
+                <button
+                  className={
+                    "px-3 py-2 rounded-full " +
+                    (page === "admin"
+                      ? "bg-fuchsia-600 text-white"
+                      : "bg-neutral-200 hover:bg-neutral-300")
+                  }
+                  onClick={() => setPage("admin")}
+                >
+                  審核區
+                </button>
+              )}
+            </nav>
+          </div>
+        </header>
+      )}
 
-      <main className="max-w-md mx-auto px-6 py-6">
-        <SafetyNotice />
-        {tab === "submit" && <SubmitForm />}
-        {tab === "feed" && <Feed posts={posts} />}
-        {tab === "admin" &&
-          (isAdmin(user) ? (
+      {/* 入口頁 */}
+      {page === "home" && <Landing onGoFeed={() => setPage("feed")} onGoSubmit={() => setPage("submit")} />}
+
+      {/* 看投稿 */}
+      {page === "feed" && (
+        <main className="max-w-md mx-auto px-6 py-6">
+          <Feed posts={posts} />
+          <FooterNotice compact />
+        </main>
+      )}
+
+      {/* 我要投稿（新版版型） */}
+      {page === "submit" && (
+        <main className="max-w-md mx-auto px-6 py-6">
+          <SubmitForm />
+          <FooterNotice />
+        </main>
+      )}
+
+      {/* 審核區 */}
+      {page === "admin" &&
+        (isAdmin(user) ? (
+          <main className="max-w-md mx-auto px-6 py-6">
             <AdminPanel pending={pending} user={user} />
-          ) : (
+          </main>
+        ) : (
+          <main className="max-w-md mx-auto px-6 py-6">
             <LoginPanel />
-          ))}
-      </main>
+          </main>
+        ))}
     </div>
   );
 }
 
-/* ====== 守則 ====== */
-function SafetyNotice() {
+/* ====== 入口頁 ====== */
+function Landing({ onGoFeed, onGoSubmit }) {
   return (
-    <div className="mb-6 p-4 rounded-2xl bg-white border shadow-sm">
-      <div className="font-semibold mb-2">注意事項與聲明（請務必閱讀）</div>
-      <ul className="list-disc pl-5 space-y-2 text-sm">
+    <main className="max-w-md mx-auto px-6 pt-12 pb-10 flex flex-col items-center">
+      <h1 className="text-center text-xl font-semibold mb-6">
+        匿名投稿板 · 七夕特別版
+      </h1>
+
+      <div className="flex gap-4 mb-16">
+        <button
+          onClick={onGoFeed}
+          className="px-6 py-3 rounded-full text-2xl bg-neutral-200 hover:bg-neutral-300"
+        >
+          看投稿
+        </button>
+        <button
+          onClick={onGoSubmit}
+          className="px-6 py-3 rounded-full text-2xl bg-neutral-900 text-white"
+        >
+          我要投稿
+        </button>
+      </div>
+
+      <div className="w-full">
+        <FooterNotice compact />
+      </div>
+    </main>
+  );
+}
+
+/* ====== 守則（底部小字） ====== */
+function FooterNotice({ compact }) {
+  return (
+    <div className="mt-6 p-4 rounded-2xl bg-white border shadow-sm">
+      <div className={"mb-2 " + (compact ? "text-xs" : "text-sm")}>
+        注意事項與聲明（請務必閱讀）
+      </div>
+      <ul
+        className={
+          "list-disc pl-5 space-y-1 " + (compact ? "text-[12px]" : "text-sm")
+        }
+      >
         <li>僅限 {MIN_AGE}+ 歲投稿。</li>
         <li>自介請友善、尊重，不包含歧視、騷擾、成人或違法內容。</li>
         <li>顯示聯絡方式即同意公開，請自行評估。</li>
@@ -220,12 +285,12 @@ function SafetyNotice() {
   );
 }
 
-/* ====== 投稿表單 ====== */
+/* ====== 投稿表單（新版順序與樣式） ====== */
 function SubmitForm() {
   const [nickname, setNickname] = useState("");
   const [age, setAge] = useState("");
-  const [intro, setIntro] = useState("");
   const [contact, setContact] = useState("");
+  const [intro, setIntro] = useState("");
   const [agree, setAgree] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -256,8 +321,8 @@ function SubmitForm() {
       await addDoc(collection(db, "posts"), {
         nickname: nickname.trim(),
         age: ageNum,
-        intro: intro.trim(),
         contact: contact.trim(),
+        intro: intro.trim(),
         approved: false,
         reportsCount: 0,
         createdAt: serverTimestamp(),
@@ -265,8 +330,8 @@ function SubmitForm() {
       setMsg("已送出！通過審核後會出現在公開牆。");
       setNickname("");
       setAge("");
-      setIntro("");
       setContact("");
+      setIntro("");
       setAgree(false);
     } catch (err) {
       console.error("[addDoc error]", err);
@@ -286,6 +351,7 @@ function SubmitForm() {
       onSubmit={handleSubmit}
       className="p-4 rounded-2xl bg-white border shadow-sm space-y-5"
     >
+      {/* 稱呼 */}
       <div>
         <label className="block text-sm font-medium mb-1">稱呼（必填）</label>
         <input
@@ -298,6 +364,7 @@ function SubmitForm() {
         />
       </div>
 
+      {/* 年齡 */}
       <div>
         <label className="block text-sm font-medium mb-1">年齡（必填）</label>
         <input
@@ -312,6 +379,20 @@ function SubmitForm() {
         />
       </div>
 
+      {/* 聯絡方式（在自介之前） */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          聯絡方式（選填，IG / Threads / Email 擇一）
+        </label>
+        <input
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="@your_ig 或 @your_threads 或 your@mail.com"
+          className="w-full px-3 py-2 rounded-xl border bg-neutral-50"
+        />
+      </div>
+
+      {/* 自我介紹（大框、緊貼標題下） */}
       <div>
         <label className="block text-sm font-medium mb-1">
           自我介紹（最多 {MAX_INTRO_LEN} 字）
@@ -328,18 +409,7 @@ function SubmitForm() {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          聯絡方式（選填，IG / Threads / Email 擇一）
-        </label>
-        <input
-          value={contact}
-          onChange={(e) => setContact(e.target.value)}
-          placeholder="@your_ig 或 @your_threads 或 your@mail.com"
-          className="w-full px-3 py-2 rounded-xl border bg-neutral-50"
-        />
-      </div>
-
+      {/* 同意守則 */}
       <label className="flex items-start gap-2 text-sm leading-6">
         <input
           type="checkbox"
@@ -356,6 +426,7 @@ function SubmitForm() {
       >
         {busy ? "送出中…" : "送出投稿（待審）"}
       </button>
+
       {msg && (
         <div className="text-sm text-neutral-700 whitespace-pre-wrap">{msg}</div>
       )}
@@ -459,7 +530,7 @@ function LoginPanel() {
     } catch (err) {
       console.error("[login error]", err);
       setMsg("登入失敗");
-      alert("登入失敗，請確認帳密與允許的登入網域設定。");
+      alert("登入失敗，請確認帳密與允許登入網域。");
     }
   }
 
