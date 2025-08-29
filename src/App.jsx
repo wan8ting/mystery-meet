@@ -33,22 +33,18 @@ export default function App() {
 
   return (
     <div style={styles.page}>
-      {/* 內嵌樣式：不依賴 Tailwind / 其他 CSS */}
-      <style>{cssReset + cssButtons}</style>
-
       <h1 style={styles.title}>匿名投稿板・七夕特別版</h1>
 
-      {/* 兩顆「藍字」按鈕 */}
+      {/* 兩顆藍字按鈕（使用行內樣式 → 一定覆蓋成功） */}
       <div style={styles.buttonRow}>
-        <button className="btn-blue" onClick={() => setPage("posts")}>
+        <button type="button" style={btnBlue} onClick={() => setPage("posts")}>
           看投稿
         </button>
-        <button className="btn-blue" onClick={() => setPage("submit")}>
+        <button type="button" style={btnBlue} onClick={() => setPage("submit")}>
           我要投稿
         </button>
       </div>
 
-      {/* 內容 */}
       {page === "home" && (
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>注意事項與聲明（請務必閱讀）</h2>
@@ -73,9 +69,7 @@ export default function App() {
                   <span style={styles.age}>（{p.age} 歲）</span>
                 </div>
                 {p.intro && <p style={styles.postText}>{p.intro}</p>}
-                {p.contact && (
-                  <p style={styles.contact}>{p.contact}</p>
-                )}
+                {p.contact && <p style={styles.contact}>{p.contact}</p>}
               </div>
             ))
           )}
@@ -85,49 +79,38 @@ export default function App() {
       {page === "submit" && (
         <div style={styles.card}>
           <h2 style={styles.cardHeading}>我要投稿</h2>
-          {/* 你原本的投稿表單放這裡（未變更） */}
-          <p style={{ color: "#6b7280" }}>（表單內容維持你現有的）</p>
+          {/* 這裡維持你的原本表單（略） */}
+          <p style={{ color: "#6b7280" }}>（表單內容沿用你現有的）</p>
         </div>
       )}
     </div>
   );
 }
 
-/* ===== CSS（直接注入，不靠 Tailwind） ===== */
-const cssReset = `
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body, #root { height: 100%; }
-  body { margin: 0; background:#f9fafb; color:#111827; }
-`;
+/* —— 行內樣式（按鈕藍字＋藍邊，iOS/Safari 不會還原成系統樣式）—— */
+const btnBlue = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "14px 28px",
+  borderRadius: 9999,
+  border: "2px solid #3B82F6", // 藍色描邊
+  color: "#2563EB",             // 藍色文字
+  background: "#FFFFFF",
+  fontSize: 20,
+  fontWeight: 800,
+  cursor: "pointer",
+  lineHeight: 1.1,
+  // 關閉預設外觀（iOS/Safari/Chrome）
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  // 防止其他全域樣式蓋掉
+  outline: "none",
+  boxShadow: "none",
+  textDecoration: "none",
+};
 
-const cssButtons = `
-  .btn-blue {
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    padding: 14px 28px;
-    border-radius: 9999px;
-    border: 2px solid #3B82F6;        /* 藍色描邊 */
-    color: #2563EB;                    /* 藍色文字 */
-    background: #ffffff;
-    font-size: 20px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all .15s ease;
-    min-width: 140px;
-  }
-  .btn-blue:active {
-    transform: translateY(1px);
-  }
-  .btn-blue:hover {
-    background: #F8FAFF;              /* 微淡藍底 */
-  }
-  @media (min-width: 768px) {
-    .btn-blue { font-size: 22px; padding: 16px 32px; }
-  }
-`;
-
-/* ===== Inline styles ===== */
 const styles = {
   page: {
     minHeight: "100vh",
@@ -137,11 +120,14 @@ const styles = {
     alignItems: "center",
     padding: "24px",
     gap: "16px",
+    background: "#f9fafb",
+    color: "#111827",
   },
   title: {
-    fontSize: "28px",
+    fontSize: 28,
     fontWeight: 800,
     margin: "8px 0 12px",
+    textAlign: "center",
   },
   buttonRow: {
     display: "flex",
@@ -163,7 +149,7 @@ const styles = {
     paddingLeft: 20,
     color: "#374151",
     lineHeight: 1.8,
-    fontSize: 14,
+    fontSize: 16,
   },
   empty: { textAlign: "center", color: "#6b7280", marginTop: 16 },
   post: {
