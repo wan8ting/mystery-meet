@@ -292,7 +292,7 @@ function SubmitForm({ onSubmit }) {
           style={inputStyle}
           value={age}
           onChange={(e) => setAge(e.target.value)}
-          placeholder="請輸入年齡（至少 16）"
+          placeholder="未滿16勿填"
           required
           disabled={submitting}
         />
