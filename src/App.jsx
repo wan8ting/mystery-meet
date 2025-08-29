@@ -67,8 +67,8 @@ function App() {
     try {
       await addDoc(collection(db, "posts"), {
         nickname: data.nickname,
-        age: data.age,
-        contact: data.contact,
+        age: Number(data.age),    
+     contact: data.contact?.trim() || null,
         intro: data.intro,
         approved: false,
         reportsCount: 0,
