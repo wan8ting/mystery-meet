@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   getFirestore,
   collection,
-  addDoc,
   query,
   where,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
   orderBy,
   onSnapshot,
 } from "firebase/firestore";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut,
-} from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import app from "./firebase";
 
 const db = getFirestore(app);
@@ -35,38 +24,35 @@ export default function App() {
         where("approved", "==", true),
         orderBy("createdAt", "desc")
       );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const unsub = onSnapshot(q, (snap) => {
+        setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       });
-      return () => unsubscribe();
+      return () => unsub();
     }
   }, [page]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-6 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-6">匿名投稿板・七夕特別版</h1>
+    <div style={styles.page}>
+      {/* 內嵌樣式：不依賴 Tailwind / 其他 CSS */}
+      <style>{cssReset + cssButtons}</style>
 
-      {/* 藍字按鈕區 */}
-      <div className="flex space-x-4 mb-6">
-        <button
-          onClick={() => setPage("posts")}
-          className="px-6 py-3 rounded-full border border-blue-500 text-blue-500 text-lg font-semibold"
-        >
+      <h1 style={styles.title}>匿名投稿板・七夕特別版</h1>
+
+      {/* 兩顆「藍字」按鈕 */}
+      <div style={styles.buttonRow}>
+        <button className="btn-blue" onClick={() => setPage("posts")}>
           看投稿
         </button>
-        <button
-          onClick={() => setPage("submit")}
-          className="px-6 py-3 rounded-full border border-blue-500 text-blue-500 text-lg font-semibold"
-        >
+        <button className="btn-blue" onClick={() => setPage("submit")}>
           我要投稿
         </button>
       </div>
 
-      {/* 頁面切換 */}
+      {/* 內容 */}
       {page === "home" && (
-        <div className="bg-white shadow-md rounded-xl p-6 max-w-md w-full">
-          <h2 className="text-md font-semibold mb-2">注意事項與聲明（請務必閱讀）</h2>
-          <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>注意事項與聲明（請務必閱讀）</h2>
+          <ul style={styles.list}>
             <li>僅限 16+ 歲投稿。</li>
             <li>自介請友善、尊重，不包含歧視、騷擾、成人或違法內容。</li>
             <li>顯示聯絡方式即同意公開，請自行評估風險。</li>
@@ -76,22 +62,19 @@ export default function App() {
       )}
 
       {page === "posts" && (
-        <div className="max-w-md w-full">
+        <div style={{ width: "100%", maxWidth: 560 }}>
           {posts.length === 0 ? (
-            <p className="text-gray-500 text-center">目前還沒有公開投稿</p>
+            <p style={styles.empty}>目前還沒有公開投稿</p>
           ) : (
-            posts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-white shadow rounded-lg p-4 mb-4 text-sm"
-              >
-                <p>
-                  <span className="font-semibold">{post.nickname}</span>（
-                  {post.age} 歲）
-                </p>
-                <p className="mt-2">{post.intro}</p>
-                {post.contact && (
-                  <p className="mt-2 text-blue-600">{post.contact}</p>
+            posts.map((p) => (
+              <div key={p.id} style={styles.post}>
+                <div style={styles.postHeader}>
+                  <span style={styles.nickname}>{p.nickname}</span>
+                  <span style={styles.age}>（{p.age} 歲）</span>
+                </div>
+                {p.intro && <p style={styles.postText}>{p.intro}</p>}
+                {p.contact && (
+                  <p style={styles.contact}>{p.contact}</p>
                 )}
               </div>
             ))
@@ -100,11 +83,100 @@ export default function App() {
       )}
 
       {page === "submit" && (
-        <div className="bg-white shadow-md rounded-xl p-6 max-w-md w-full">
-          <h2 className="text-lg font-semibold mb-4">我要投稿</h2>
-          {/* 表單放這裡（省略，保持你原本的內容） */}
+        <div style={styles.card}>
+          <h2 style={styles.cardHeading}>我要投稿</h2>
+          {/* 你原本的投稿表單放這裡（未變更） */}
+          <p style={{ color: "#6b7280" }}>（表單內容維持你現有的）</p>
         </div>
       )}
     </div>
   );
 }
+
+/* ===== CSS（直接注入，不靠 Tailwind） ===== */
+const cssReset = `
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { height: 100%; }
+  body { margin: 0; background:#f9fafb; color:#111827; }
+`;
+
+const cssButtons = `
+  .btn-blue {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding: 14px 28px;
+    border-radius: 9999px;
+    border: 2px solid #3B82F6;        /* 藍色描邊 */
+    color: #2563EB;                    /* 藍色文字 */
+    background: #ffffff;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s ease;
+    min-width: 140px;
+  }
+  .btn-blue:active {
+    transform: translateY(1px);
+  }
+  .btn-blue:hover {
+    background: #F8FAFF;              /* 微淡藍底 */
+  }
+  @media (min-width: 768px) {
+    .btn-blue { font-size: 22px; padding: 16px 32px; }
+  }
+`;
+
+/* ===== Inline styles ===== */
+const styles = {
+  page: {
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "24px",
+    gap: "16px",
+  },
+  title: {
+    fontSize: "28px",
+    fontWeight: 800,
+    margin: "8px 0 12px",
+  },
+  buttonRow: {
+    display: "flex",
+    gap: "16px",
+    marginBottom: "16px",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 560,
+    background: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
+  },
+  cardTitle: { fontSize: 16, fontWeight: 700, marginBottom: 8 },
+  cardHeading: { fontSize: 20, fontWeight: 800, marginBottom: 8 },
+  list: {
+    margin: 0,
+    paddingLeft: 20,
+    color: "#374151",
+    lineHeight: 1.8,
+    fontSize: 14,
+  },
+  empty: { textAlign: "center", color: "#6b7280", marginTop: 16 },
+  post: {
+    background: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+    fontSize: 14,
+  },
+  postHeader: { fontWeight: 600 },
+  nickname: { marginRight: 4 },
+  age: { color: "#6b7280", fontWeight: 500 },
+  postText: { marginTop: 8, whiteSpace: "pre-wrap" },
+  contact: { marginTop: 8, color: "#2563EB", wordBreak: "break-all" },
+};
