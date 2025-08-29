@@ -331,7 +331,7 @@ function SubmitForm({ onSubmit }) {
             style={{ marginRight: 8 }}
             disabled={submitting}
           />
-          我已閱讀並同意守則，且保證年齡屬實、內容不含違規事項。
+          我已閱讀並同意守則，內容不含違規事項。
         </label>
       </div>
 
