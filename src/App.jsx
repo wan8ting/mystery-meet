@@ -39,17 +39,22 @@ const ADMIN_EMAILS = ["wan8ting@gmail.com"]; // 需要就增加
 
 /* ---------------- App ---------------- */
 function App() {
-  // page: home, submit, review, posts, admin
-  const [page, setPage] = useState("home");
-  const [posts, setPosts] = useState([]);
+  // route: ''(或#)、#submit、#posts、#admin
+  const [route, setRoute] = useState(window.location.hash || "");
   const [user, setUser] = useState(null);
+  const [posts, setPosts] = useState([]);
 
   const isAdmin =
     !!user && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
-    return () => unsub();
+    const onHash = () => setRoute(window.location.hash || "");
+    window.addEventListener("hashchange", onHash);
+    return () => {
+      unsub();
+      window.removeEventListener("hashchange", onHash);
+    };
   }, []);
 
   const fetchPosts = async () => {
@@ -70,7 +75,7 @@ function App() {
         createdAt: serverTimestamp(),
       });
       alert("投稿已送出，待審核通過後才會公開！");
-      setPage("home");
+      window.location.hash = ""; // 回首頁
     } catch (e) {
       console.error("Error adding document: ", e);
       alert("送出失敗，請稍後再試");
@@ -84,63 +89,89 @@ function App() {
     fetchPosts();
   };
 
+  /* -------- 專屬 /#admin Gate：未登入顯示登入；登入且為白名單顯示審核 -------- */
+  if (route === "#admin") {
+    return (
+      <Shell>
+        <AdminGate
+          user={user}
+          isAdmin={isAdmin}
+          onLoggedIn={() => (window.location.hash = "#admin")}
+        />
+      </Shell>
+    );
+  }
+
+  /* -------- 其餘頁面（一般使用者） -------- */
   return (
-    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", padding: 20, textAlign: "center" }}>
+    <Shell>
       {/* 兩行標題 */}
-      <div style={{ marginTop: 4, marginBottom: 12 }}>
-        <div style={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>課金派戀愛迷因</div>
-        <div style={{ fontWeight: 800, fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>七夕特別版</div>
-      </div>
+      <HeaderTitle />
 
-      {/* 導覽按鈕（藍字圓角） */}
-      <div style={{ marginBottom: 24, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-        <button
-          style={navBtnBlue}
-          onClick={() => {
-            setPage("posts");
-            fetchPosts();
-          }}
-        >
+      {/* 導覽按鈕（藍字圓角），不顯示「審核區」 */}
+      <div style={navWrap}>
+        <a href="#posts" style={navBtnBlue} onClick={fetchPosts}>
           看投稿
-        </button>
-        <button style={navBtnBlue} onClick={() => setPage("submit")}>
+        </a>
+        <a href="#submit" style={navBtnBlue}>
           我要投稿
-        </button>
-        <button
-          style={navBtnBlue}
-          onClick={() => setPage(user ? "review" : "admin")}
-        >
-          審核區
-        </button>
+        </a>
       </div>
 
-      {/* 各頁 */}
-      {page === "home" && <Home />}
+      {/* 路由切換 */}
+      {(!route || route === "#") && <Home />}
 
-      {page === "submit" && <SubmitForm onSubmit={handleSubmit} />}
+      {route === "#submit" && <SubmitForm onSubmit={handleSubmit} />}
 
-      {page === "posts" && (
+      {route === "#posts" && (
         <Posts
           posts={posts}
           isAdmin={isAdmin}
           onDelete={handleDeletePublic}
         />
       )}
+    </Shell>
+  );
+}
 
-      {page === "review" && user && <Review />}
-
-      {page === "admin" && (
-        <AdminLogin
-          user={user}
-          onLoggedIn={() => setPage("review")}
-        />
-      )}
+/* ---------------- 外層框架 ---------------- */
+function Shell({ children }) {
+  return (
+    <div
+      style={{
+        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif",
+        padding: 20,
+        textAlign: "center",
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-/* ---------------- 按鈕樣式（藍字圓角） ---------------- */
+function HeaderTitle() {
+  return (
+    <div style={{ marginTop: 4, marginBottom: 12 }}>
+      <div style={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>課金派戀愛迷因</div>
+      <div style={{ fontWeight: 800, fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>
+        七夕特別版
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- 樣式 ---------------- */
+const navWrap = {
+  marginBottom: 24,
+  display: "flex",
+  gap: 12,
+  justifyContent: "center",
+  flexWrap: "wrap",
+};
+
 const navBtnBlue = {
+  display: "inline-block",
+  textDecoration: "none",
   margin: "0 6px",
   padding: "14px 22px",
   fontSize: 18,
@@ -156,15 +187,17 @@ const navBtnBlue = {
 /* ---------------- 首頁（守則） ---------------- */
 function Home() {
   return (
-    <div style={{
-      maxWidth: 680,
-      margin: "0 auto",
-      textAlign: "left",
-      background: "#fff",
-      borderRadius: 16,
-      padding: 20,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    }}>
+    <div
+      style={{
+        maxWidth: 680,
+        margin: "0 auto",
+        textAlign: "left",
+        background: "#fff",
+        borderRadius: 16,
+        padding: 20,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      }}
+    >
       <h4 style={{ marginBottom: 12 }}>注意事項與聲明（請務必閱讀）</h4>
       <ul style={{ lineHeight: 1.8 }}>
         <li>僅限 16+ 歲投稿。</li>
@@ -415,15 +448,65 @@ function Review() {
   );
 }
 
-/* ---------------- 管理員登入頁 ---------------- */
-function AdminLogin({ user, onLoggedIn }) {
+/* ---------------- AdminGate（專屬 /#admin） ---------------- */
+function AdminGate({ user, isAdmin, onLoggedIn }) {
+  // 未登入 → 顯示登入；登入但非白名單 → 提示不是管理員；登入且是白名單 → 審核頁
+  if (!user) return <AdminLogin onLoggedIn={onLoggedIn} />;
+
+  if (!isAdmin) {
+    return (
+      <>
+        <HeaderTitle />
+        <div
+          style={{
+            maxWidth: 440,
+            margin: "0 auto",
+            background: "#fff",
+            padding: 20,
+            borderRadius: 16,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            textAlign: "left",
+          }}
+        >
+          <p style={{ color: "#DC2626" }}>此帳號不是管理員，無法檢視審核頁。</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => signOut(auth)}
+              style={{ ...navBtnBlue, borderColor: "#9CA3AF", color: "#6B7280" }}
+            >
+              登出
+            </button>
+            <a href="#" style={navBtnBlue}>回首頁</a>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <HeaderTitle />
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <a href="#" style={navBtnBlue}>回首頁</a>
+          <button
+            onClick={() => signOut(auth)}
+            style={{ ...navBtnBlue, borderColor: "#111827", color: "#111827" }}
+          >
+            登出
+          </button>
+        </div>
+      </div>
+      <Review />
+    </>
+  );
+}
+
+/* ---------------- 管理員登入 ---------------- */
+function AdminLogin({ onLoggedIn }) {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
-
-  useEffect(() => {
-    if (user) onLoggedIn && onLoggedIn();
-  }, [user, onLoggedIn]);
 
   const login = async () => {
     setErr("");
@@ -436,58 +519,58 @@ function AdminLogin({ user, onLoggedIn }) {
   };
 
   return (
-    <div style={{
-      maxWidth: 420,
-      margin: "0 auto",
-      textAlign: "left",
-      background: "#fff",
-      borderRadius: 16,
-      padding: 20,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    }}>
-      <h3 style={{ marginTop: 0 }}>管理員登入</h3>
-      <div style={{ display: "grid", gap: 10 }}>
-        <label>Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="admin@example.com"
-          style={inputBox}
-        />
-        <label>密碼</label>
-        <input
-          type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          placeholder="••••••••"
-          style={inputBox}
-        />
-        {err && <div style={{ color: "#DC2626", fontSize: 14 }}>{err}</div>}
-        <button
-          onClick={login}
-          style={{
-            ...navBtnBlue,
-            background: "#111827",
-            color: "#fff",
-            borderColor: "#111827",
-          }}
-        >
-          登入
-        </button>
-        <p style={{ color: "#6b7280", fontSize: 13 }}>
-          請先在 Firebase Authentication 啟用「電子郵件/密碼」，並建立管理員帳號。
-        </p>
+    <>
+      <HeaderTitle />
+      <div
+        style={{
+          maxWidth: 420,
+          margin: "0 auto",
+          textAlign: "left",
+          background: "#fff",
+          borderRadius: 16,
+          padding: 20,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>管理員登入</h3>
+        <div style={{ display: "grid", gap: 10 }}>
+          <label>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@example.com"
+            style={inputBox}
+          />
+          <label>密碼</label>
+          <input
+            type="password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            placeholder="••••••••"
+            style={inputBox}
+          />
+          {err && <div style={{ color: "#DC2626", fontSize: 14 }}>{err}</div>}
+          <button
+            onClick={login}
+            style={{
+              ...navBtnBlue,
+              background: "#111827",
+              color: "#fff",
+              borderColor: "#111827",
+            }}
+          >
+            登入
+          </button>
+          <p style={{ color: "#6b7280", fontSize: 13 }}>
+            請先在 Firebase Authentication 啟用「電子郵件/密碼」，並建立管理員帳號。
+          </p>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <a href="#" style={navBtnBlue}>回首頁</a>
+        </div>
       </div>
-      <div style={{ marginTop: 12 }}>
-        <button
-          onClick={() => signOut(auth)}
-          style={{ ...navBtnBlue, borderColor: "#9CA3AF", color: "#6B7280" }}
-        >
-          登出
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 
