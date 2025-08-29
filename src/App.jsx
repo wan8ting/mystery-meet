@@ -24,6 +24,56 @@ const MIN_AGE = 16;
 const MAX_INTRO_LEN = 200;
 const BANNED_WORDS = ["約炮", "騷擾", "仇恨", "種族歧視", "霸凌", "毒品"];
 
+/* ====== 全域未捕捉錯誤保護 ====== */
+if (typeof window !== "undefined") {
+  window.onunhandledrejection = (e) => {
+    console.error("[Unhandled Rejection]", e.reason);
+    alert("發生未預期錯誤（可能是權限或網路問題）。請稍後重試。");
+  };
+}
+
+/* ====== Error Boundary，避免整頁白掉 ====== */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: "", stack: "" };
+  }
+  static getDerivedStateFromError(err) {
+    return { hasError: true, message: err?.message || String(err) };
+  }
+  componentDidCatch(err, info) {
+    console.error("[Render Error]", err, info);
+    this.setState({ stack: info?.componentStack || "" });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-6">
+          <div className="max-w-md w-full p-4 rounded-2xl bg-white border shadow-sm">
+            <div className="font-semibold mb-2">糟糕，頁面出錯了</div>
+            <div className="text-sm text-red-600 break-words mb-2">
+              {this.state.message}
+            </div>
+            {this.state.stack ? (
+              <pre className="text-xs text-neutral-500 whitespace-pre-wrap">
+                {this.state.stack}
+              </pre>
+            ) : null}
+            <button
+              className="mt-3 px-4 py-2 rounded-xl bg-neutral-900 text-white"
+              onClick={() => location.reload()}
+            >
+              重新整理
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ====== 小工具 ====== */
 function useAuth() {
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
@@ -41,12 +91,22 @@ function timeSince(ts) {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
-export default function App() {
+/* ====== App ====== */
+export default function Root() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
+function App() {
   const user = useAuth();
   const [tab, setTab] = useState("feed");
   const [posts, setPosts] = useState([]);
   const [pending, setPending] = useState([]);
 
+  // 公開牆
   useEffect(() => {
     const q = query(
       collection(db, "posts"),
@@ -59,6 +119,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // 待審清單
   useEffect(() => {
     if (!isAdmin(user)) return;
     const q = query(
@@ -72,6 +133,7 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
+  // 隱藏入口
   useEffect(() => {
     const goIfAdminParam = () => {
       const hash = window.location.hash || "";
@@ -143,6 +205,7 @@ export default function App() {
   );
 }
 
+/* ====== 守則 ====== */
 function SafetyNotice() {
   return (
     <div className="mb-6 p-4 rounded-2xl bg-white border shadow-sm">
@@ -157,6 +220,7 @@ function SafetyNotice() {
   );
 }
 
+/* ====== 投稿表單 ====== */
 function SubmitForm() {
   const [nickname, setNickname] = useState("");
   const [age, setAge] = useState("");
@@ -164,6 +228,7 @@ function SubmitForm() {
   const [contact, setContact] = useState("");
   const [agree, setAgree] = useState(false);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const ageNum = parseInt(age, 10);
   const canSubmit =
@@ -172,22 +237,21 @@ function SubmitForm() {
     nickname.trim().length > 0 &&
     intro.trim().length > 0 &&
     intro.trim().length <= MAX_INTRO_LEN &&
-    agree;
+    agree &&
+    !busy;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("");
-
     if (!Number.isInteger(ageNum) || ageNum < MIN_AGE) {
       alert(`年齡需大於或等於 ${MIN_AGE} 歲！`);
       return;
     }
-
-    if (!canSubmit) return;
     if (containsBanned(intro)) {
       setMsg("內容疑似含有不當字詞，請調整後再送出。");
       return;
     }
+    setBusy(true);
     try {
       await addDoc(collection(db, "posts"), {
         nickname: nickname.trim(),
@@ -204,8 +268,16 @@ function SubmitForm() {
       setIntro("");
       setContact("");
       setAgree(false);
-    } catch {
-      setMsg("送出失敗，請稍後再試。");
+    } catch (err) {
+      console.error("[addDoc error]", err);
+      const detail =
+        err?.message?.includes("Missing or insufficient permissions")
+          ? "沒有權限寫入資料庫：請檢查 Firestore 規則與專案/網域設定。"
+          : err?.message || "送出失敗，請稍後再試。";
+      setMsg(detail);
+      alert(detail);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -282,13 +354,16 @@ function SubmitForm() {
         disabled={!canSubmit}
         className="w-full px-4 py-3 rounded-2xl bg-neutral-900 text-white text-xl disabled:opacity-50"
       >
-        送出投稿（待審）
+        {busy ? "送出中…" : "送出投稿（待審）"}
       </button>
-      {msg && <div className="text-sm text-neutral-700">{msg}</div>}
+      {msg && (
+        <div className="text-sm text-neutral-700 whitespace-pre-wrap">{msg}</div>
+      )}
     </form>
   );
 }
 
+/* ====== 公開牆 ====== */
 function Feed({ posts }) {
   return posts.length === 0 ? (
     <div className="text-center text-sm text-neutral-500">
@@ -371,6 +446,7 @@ function PostCard({ post }) {
   );
 }
 
+/* ====== 管理員登入 / 審核 ====== */
 function LoginPanel() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -380,13 +456,18 @@ function LoginPanel() {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, pw);
-    } catch {
+    } catch (err) {
+      console.error("[login error]", err);
       setMsg("登入失敗");
+      alert("登入失敗，請確認帳密與允許的登入網域設定。");
     }
   }
 
   return (
-    <form onSubmit={handleLogin} className="p-4 bg-white rounded-xl border shadow-sm space-y-3">
+    <form
+      onSubmit={handleLogin}
+      className="p-4 bg-white rounded-xl border shadow-sm space-y-3"
+    >
       <input
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -408,16 +489,28 @@ function LoginPanel() {
   );
 }
 
-function AdminPanel({ pending }) {
+function AdminPanel({ pending, user }) {
   async function approvePost(id) {
     await updateDoc(doc(db, "posts", id), { approved: true });
   }
   async function deletePost(id) {
     await deleteDoc(doc(db, "posts", id));
   }
+  async function logout() {
+    await signOut(auth);
+  }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-neutral-600">
+          你好，{user?.email}（管理員）
+        </div>
+        <button onClick={logout} className="text-sm underline">
+          登出
+        </button>
+      </div>
+
       {pending.length === 0 ? (
         <div className="text-center text-sm text-neutral-500">
           沒有待審核的投稿
@@ -430,7 +523,9 @@ function AdminPanel({ pending }) {
             </div>
             <div className="whitespace-pre-wrap text-sm mb-2">{p.intro}</div>
             {p.contact && (
-              <div className="text-xs text-neutral-500 mb-2">聯絡：{p.contact}</div>
+              <div className="text-xs text-neutral-500 mb-2">
+                聯絡：{p.contact}
+              </div>
             )}
             <div className="flex gap-2">
               <button
