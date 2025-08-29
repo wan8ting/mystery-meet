@@ -63,24 +63,26 @@ function App() {
     setPosts(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   };
 
-  const handleSubmit = async (data) => {
-    try {
-      await addDoc(collection(db, "posts"), {
-        nickname: data.nickname,
-       age: Number(data.age),
-       contact: data.contact?.trim() || null,
-        intro: data.intro,
-        approved: false,
-        reportsCount: 0,
-        createdAt: serverTimestamp(),
-      });
-      alert("投稿已送出，待審核通過後才會公開！");
-      window.location.hash = ""; // 回首頁
-    } catch (e) {
-      console.error("Error adding document: ", e);
-      alert("送出失敗，請稍後再試");
-    }
-  };
+const handleSubmit = async (data) => {
+  try {
+    await addDoc(collection(db, "posts"), {
+      nickname: data.nickname,
+      age: Number(data.age),
+      contact: data.contact?.trim() || null,
+      intro: data.intro,
+      approved: false,
+      reportsCount: 0,
+      createdAt: serverTimestamp(),
+    });
+    alert("投稿已送出，待審核通過後才會公開！");
+    window.location.hash = ""; // 回首頁
+    return true;
+  } catch (e) {
+    console.error("Error adding document: ", e);
+    // 讓子層能 catch 到錯誤
+    throw e;
+  }
+};
 
   const handleDeletePublic = async (id) => {
     if (!isAdmin) return;
@@ -218,22 +220,33 @@ function SubmitForm({ onSubmit }) {
   const [intro, setIntro] = useState("");
   const [agree, setAgree] = useState(false);
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (parseInt(age, 10) < 16) {
-      alert("年齡需滿 16 歲以上才能投稿");
+    setErr("");
+
+    const ageNum = parseInt(age, 10);
+    if (Number.isNaN(ageNum) || ageNum < 16) {
+      setErr("年齡需滿 16 歲以上才能投稿");
       return;
     }
     if (!agree) {
-      alert("請勾選並同意守則");
+      setErr("請勾選並同意守則");
       return;
     }
-    onSubmit({ nickname, age: ageNum, contact, intro });
-    setNickname("");
-    setAge("");
-    setContact("");
-    setIntro("");
-    setAgree(false);
+
+    setSubmitting(true);
+    try {
+      await onSubmit({ nickname, age: ageNum, contact, intro });
+      // 成功會在父層 alert 並導回首頁；這裡不用再重置
+    } catch (e) {
+      // 會顯示更明確的錯誤，而不是看起來「沒反應」
+      setErr(e?.message || "送出失敗，請稍後再試");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputStyle = {
@@ -268,6 +281,7 @@ function SubmitForm({ onSubmit }) {
           onChange={(e) => setNickname(e.target.value)}
           placeholder="例如：VIC、平崎..."
           required
+          disabled={submitting}
         />
       </div>
 
@@ -280,6 +294,7 @@ function SubmitForm({ onSubmit }) {
           onChange={(e) => setAge(e.target.value)}
           placeholder="請輸入年齡（至少 16）"
           required
+          disabled={submitting}
         />
       </div>
 
@@ -290,6 +305,7 @@ function SubmitForm({ onSubmit }) {
           value={contact}
           onChange={(e) => setContact(e.target.value)}
           placeholder="@your_ig 或 @your_threads 或 your@mail.com"
+          disabled={submitting}
         />
       </div>
 
@@ -299,39 +315,49 @@ function SubmitForm({ onSubmit }) {
           style={{ ...inputStyle, minHeight: 120 }}
           value={intro}
           onChange={(e) => setIntro(e.target.value.slice(0, MAX_INTRO_LEN))}
+          disabled={submitting}
         />
         <div style={{ fontSize: 12, color: "#666", textAlign: "right" }}>
           {intro.length}/{MAX_INTRO_LEN}
         </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 14 }}>
           <input
             type="checkbox"
             checked={agree}
             onChange={(e) => setAgree(e.target.checked)}
             style={{ marginRight: 8 }}
+            disabled={submitting}
           />
           我已閱讀並同意守則，且保證年齡屬實、內容不含違規事項。
         </label>
       </div>
 
+      {err && (
+        <div style={{ color: "#DC2626", marginBottom: 12, fontSize: 14 }}>
+          {err}
+        </div>
+      )}
+
       <button
         type="submit"
+        disabled={submitting}
         style={{
           width: "100%",
           padding: "12px",
           borderRadius: 12,
           border: "none",
-          background: "#2563eb",
+          background: submitting ? "#93c5fd" : "#2563eb",
           color: "#fff",
           fontSize: 18,
           fontWeight: "bold",
-          cursor: "pointer",
+          cursor: submitting ? "not-allowed" : "pointer",
+          transition: "background .2s",
         }}
       >
-        送出投稿
+        {submitting ? "送出中…" : "送出投稿"}
       </button>
     </form>
   );
