@@ -19,7 +19,8 @@ import {
   signOut,
 } from "firebase/auth";
 
-// 🔹 你的 Firebase 設定
+/* ---------------- Firebase 設定 ---------------- */
+// ⚠️ 請換成你的專案參數
 const firebaseConfig = {
   apiKey: "AIzaSyBwSQtQM16W-1FQ4NN1dWaLKjsRx_2W41U",
   authDomain: "mystery-meet.firebaseapp.com",
@@ -33,15 +34,22 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+/* 管理員白名單（用 Email 判斷） */
+const ADMIN_EMAILS = ["wan8ting@gmail.com"]; // 需要就增加
+
+/* ---------------- App ---------------- */
 function App() {
-  const [page, setPage] = useState("home"); // home, submit, review, posts
+  // page: home, submit, review, posts, admin
+  const [page, setPage] = useState("home");
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
 
+  const isAdmin =
+    !!user && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
+
   useEffect(() => {
-    onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
+    return () => unsub();
   }, []);
 
   const fetchPosts = async () => {
@@ -65,17 +73,29 @@ function App() {
       setPage("home");
     } catch (e) {
       console.error("Error adding document: ", e);
+      alert("送出失敗，請稍後再試");
     }
   };
 
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", padding: 20, textAlign: "center" }}>
-      <h2 style={{ marginBottom: 20 }}>匿名投稿板・七夕特別版</h2>
+  const handleDeletePublic = async (id) => {
+    if (!isAdmin) return;
+    if (!window.confirm("確定要刪除此公開投稿？刪除後無法復原")) return;
+    await deleteDoc(doc(db, "posts", id));
+    fetchPosts();
+  };
 
-      {/* 導覽按鈕 */}
-      <div style={{ marginBottom: 30 }}>
+  return (
+    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", padding: 20, textAlign: "center" }}>
+      {/* 兩行標題 */}
+      <div style={{ marginTop: 4, marginBottom: 12 }}>
+        <div style={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>課金派戀愛迷因</div>
+        <div style={{ fontWeight: 800, fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>七夕特別版</div>
+      </div>
+
+      {/* 導覽按鈕（藍字圓角） */}
+      <div style={{ marginBottom: 24, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
         <button
-          style={navBtn}
+          style={navBtnBlue}
           onClick={() => {
             setPage("posts");
             fetchPosts();
@@ -83,42 +103,70 @@ function App() {
         >
           看投稿
         </button>
-        <button style={navBtn} onClick={() => setPage("submit")}>
+        <button style={navBtnBlue} onClick={() => setPage("submit")}>
           我要投稿
         </button>
-        {user && (
-          <button style={navBtn} onClick={() => setPage("review")}>
-            審核區
-          </button>
-        )}
+        <button
+          style={navBtnBlue}
+          onClick={() => setPage(user ? "review" : "admin")}
+        >
+          審核區
+        </button>
       </div>
 
       {/* 各頁 */}
       {page === "home" && <Home />}
+
       {page === "submit" && <SubmitForm onSubmit={handleSubmit} />}
-      {page === "posts" && <Posts posts={posts} />}
+
+      {page === "posts" && (
+        <Posts
+          posts={posts}
+          isAdmin={isAdmin}
+          onDelete={handleDeletePublic}
+        />
+      )}
+
       {page === "review" && user && <Review />}
+
+      {page === "admin" && (
+        <AdminLogin
+          user={user}
+          onLoggedIn={() => setPage("review")}
+        />
+      )}
     </div>
   );
 }
 
-// 🔹 導覽按鈕樣式
-const navBtn = {
-  margin: "0 8px",
-  padding: "12px 20px",
+/* ---------------- 按鈕樣式（藍字圓角） ---------------- */
+const navBtnBlue = {
+  margin: "0 6px",
+  padding: "14px 22px",
   fontSize: 18,
-  borderRadius: 24,
-  border: "1px solid #ccc",
-  background: "#f6f7f8",
+  borderRadius: 9999,
+  border: "2px solid #3B82F6",
+  background: "#ffffff",
+  color: "#2563EB",
+  fontWeight: 800,
   cursor: "pointer",
+  WebkitTapHighlightColor: "transparent",
 };
 
-// 🔹 首頁（守則）
+/* ---------------- 首頁（守則） ---------------- */
 function Home() {
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "left" }}>
+    <div style={{
+      maxWidth: 680,
+      margin: "0 auto",
+      textAlign: "left",
+      background: "#fff",
+      borderRadius: 16,
+      padding: 20,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    }}>
       <h4 style={{ marginBottom: 12 }}>注意事項與聲明（請務必閱讀）</h4>
-      <ul>
+      <ul style={{ lineHeight: 1.8 }}>
         <li>僅限 16+ 歲投稿。</li>
         <li>自介請友善、尊重，不包含歧視、騷擾、成人或違法內容。</li>
         <li>顯示聯絡方式即同意公開，請自行評估風險。</li>
@@ -128,7 +176,7 @@ function Home() {
   );
 }
 
-// 🔹 投稿表單
+/* ---------------- 投稿表單 ---------------- */
 function SubmitForm({ onSubmit }) {
   const MAX_INTRO_LEN = 200;
   const [nickname, setNickname] = useState("");
@@ -139,7 +187,7 @@ function SubmitForm({ onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (parseInt(age) < 16) {
+    if (parseInt(age, 10) < 16) {
       alert("年齡需滿 16 歲以上才能投稿");
       return;
     }
@@ -173,7 +221,7 @@ function SubmitForm({ onSubmit }) {
         background: "#fff",
         padding: "20px",
         borderRadius: 16,
-        maxWidth: 480,
+        maxWidth: 520,
         margin: "20px auto",
         boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
         textAlign: "left",
@@ -256,12 +304,12 @@ function SubmitForm({ onSubmit }) {
   );
 }
 
-// 🔹 公開投稿列表
-function Posts({ posts }) {
+/* ---------------- 公開投稿列表（含管理員刪除） ---------------- */
+function Posts({ posts, isAdmin, onDelete }) {
   if (posts.length === 0) return <p>目前還沒有公開投稿，等等再來逛～</p>;
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "left" }}>
+    <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "left" }}>
       {posts.map((p) => (
         <div
           key={p.id}
@@ -271,12 +319,35 @@ function Posts({ posts }) {
             borderRadius: 12,
             marginBottom: 16,
             boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+            position: "relative",
           }}
         >
-          <p>
+          {/* 管理員刪除 */}
+          {isAdmin && (
+            <button
+              onClick={() => onDelete(p.id)}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: 12,
+                border: "2px solid #EF4444",
+                color: "#EF4444",
+                background: "#fff",
+                borderRadius: 9999,
+                padding: "6px 12px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+              title="刪除此帖"
+            >
+              刪除
+            </button>
+          )}
+
+          <p style={{ marginRight: isAdmin ? 80 : 0 }}>
             <b>{p.nickname}</b>（{p.age} 歲）
           </p>
-          <p>{p.intro}</p>
+          {p.intro && <p style={{ whiteSpace: "pre-wrap" }}>{p.intro}</p>}
           {p.contact && (
             <p style={{ fontSize: 14, color: "#555" }}>📩 {p.contact}</p>
           )}
@@ -286,7 +357,7 @@ function Posts({ posts }) {
   );
 }
 
-// 🔹 管理員審核頁
+/* ---------------- 審核頁 ---------------- */
 function Review() {
   const [pending, setPending] = useState([]);
 
@@ -311,7 +382,7 @@ function Review() {
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "left" }}>
+    <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "left" }}>
       <h4>待審核投稿</h4>
       {pending.length === 0 && <p>目前沒有待審核的投稿</p>}
       {pending.map((p) => (
@@ -332,14 +403,101 @@ function Review() {
           {p.contact && (
             <p style={{ fontSize: 14, color: "#555" }}>📩 {p.contact}</p>
           )}
-          <button onClick={() => approvePost(p.id)} style={{ marginRight: 8 }}>
-            通過
-          </button>
-          <button onClick={() => deletePost(p.id)}>刪除</button>
+          <div style={{ marginTop: 8 }}>
+            <button onClick={() => approvePost(p.id)} style={{ marginRight: 8 }}>
+              通過
+            </button>
+            <button onClick={() => deletePost(p.id)}>刪除</button>
+          </div>
         </div>
       ))}
     </div>
   );
 }
+
+/* ---------------- 管理員登入頁 ---------------- */
+function AdminLogin({ user, onLoggedIn }) {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (user) onLoggedIn && onLoggedIn();
+  }, [user, onLoggedIn]);
+
+  const login = async () => {
+    setErr("");
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      onLoggedIn && onLoggedIn();
+    } catch (e) {
+      setErr(e?.message || "登入失敗");
+    }
+  };
+
+  return (
+    <div style={{
+      maxWidth: 420,
+      margin: "0 auto",
+      textAlign: "left",
+      background: "#fff",
+      borderRadius: 16,
+      padding: 20,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    }}>
+      <h3 style={{ marginTop: 0 }}>管理員登入</h3>
+      <div style={{ display: "grid", gap: 10 }}>
+        <label>Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="admin@example.com"
+          style={inputBox}
+        />
+        <label>密碼</label>
+        <input
+          type="password"
+          value={pass}
+          onChange={(e) => setPass(e.target.value)}
+          placeholder="••••••••"
+          style={inputBox}
+        />
+        {err && <div style={{ color: "#DC2626", fontSize: 14 }}>{err}</div>}
+        <button
+          onClick={login}
+          style={{
+            ...navBtnBlue,
+            background: "#111827",
+            color: "#fff",
+            borderColor: "#111827",
+          }}
+        >
+          登入
+        </button>
+        <p style={{ color: "#6b7280", fontSize: 13 }}>
+          請先在 Firebase Authentication 啟用「電子郵件/密碼」，並建立管理員帳號。
+        </p>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <button
+          onClick={() => signOut(auth)}
+          style={{ ...navBtnBlue, borderColor: "#9CA3AF", color: "#6B7280" }}
+        >
+          登出
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const inputBox = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: "1px solid #E5E7EB",
+  background: "#F9FAFB",
+  fontSize: 16,
+};
 
 export default App;
