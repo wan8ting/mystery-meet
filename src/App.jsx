@@ -289,4 +289,166 @@ function SubmitForm() {
   );
 }
 
-/* 其他元件（Feed、PostCard、LoginPanel、AdminPanel）保持前版不變 */
+function Feed({ posts }) {
+  return posts.length === 0 ? (
+    <div className="text-center text-sm text-neutral-500">
+      目前還沒有公開投稿，等等再來逛～
+    </div>
+  ) : (
+    <div className="space-y-4">
+      {posts.map((p) => (
+        <PostCard key={p.id} post={p} />
+      ))}
+    </div>
+  );
+}
+
+function PostCard({ post }) {
+  const [showContact, setShowContact] = useState(false);
+  const created = post.createdAt?.toDate?.() || new Date();
+
+  async function adminUnapprove() {
+    await updateDoc(doc(db, "posts", post.id), { approved: false });
+    alert("已下架。");
+  }
+  async function adminDelete() {
+    if (confirm("確定要永久刪除這篇投稿嗎？此動作無法復原。")) {
+      await deleteDoc(doc(db, "posts", post.id));
+      alert("已刪除。");
+    }
+  }
+
+  return (
+    <div className="p-4 rounded-2xl bg-white border shadow-sm">
+      <div className="mb-2">
+        <div className="text-sm font-medium">
+          {post.nickname ? `${post.nickname} · ` : ""}
+          {post.age} 歲
+        </div>
+        <div className="text-[10px] text-neutral-400 mt-0.5">
+          發佈於 {timeSince(created)}
+        </div>
+      </div>
+
+      <div className="whitespace-pre-wrap leading-6">{post.intro}</div>
+
+      {post.contact ? (
+        <div className="mt-3">
+          {!showContact ? (
+            <button
+              onClick={() => setShowContact(true)}
+              className="px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm md:text-base"
+            >
+              顯示聯絡方式
+            </button>
+          ) : (
+            <div className="p-3 rounded-xl bg-neutral-100 border text-sm">
+              聯絡方式：<span className="font-semibold">{post.contact}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 text-xs text-neutral-500">投稿者未提供聯絡方式。</div>
+      )}
+
+      {auth.currentUser && ADMIN_EMAILS.includes(auth.currentUser.email || "") && (
+        <div className="mt-3 flex gap-2 text-sm">
+          <button
+            onClick={adminUnapprove}
+            className="px-3 py-1.5 rounded-xl border"
+          >
+            下架
+          </button>
+          <button
+            onClick={adminDelete}
+            className="px-3 py-1.5 rounded-xl border text-red-600"
+          >
+            刪除
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoginPanel() {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, pw);
+    } catch {
+      setMsg("登入失敗");
+    }
+  }
+
+  return (
+    <form onSubmit={handleLogin} className="p-4 bg-white rounded-xl border shadow-sm space-y-3">
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="管理員 Email"
+        className="w-full px-3 py-2 rounded-xl border"
+      />
+      <input
+        type="password"
+        value={pw}
+        onChange={(e) => setPw(e.target.value)}
+        placeholder="密碼"
+        className="w-full px-3 py-2 rounded-xl border"
+      />
+      <button className="w-full px-3 py-2 bg-neutral-900 text-white rounded-xl">
+        登入
+      </button>
+      {msg && <div className="text-sm text-red-600">{msg}</div>}
+    </form>
+  );
+}
+
+function AdminPanel({ pending }) {
+  async function approvePost(id) {
+    await updateDoc(doc(db, "posts", id), { approved: true });
+  }
+  async function deletePost(id) {
+    await deleteDoc(doc(db, "posts", id));
+  }
+
+  return (
+    <div className="space-y-4">
+      {pending.length === 0 ? (
+        <div className="text-center text-sm text-neutral-500">
+          沒有待審核的投稿
+        </div>
+      ) : (
+        pending.map((p) => (
+          <div key={p.id} className="p-4 rounded-2xl bg-white border shadow-sm">
+            <div className="text-sm font-medium mb-1">
+              {p.nickname} · {p.age} 歲
+            </div>
+            <div className="whitespace-pre-wrap text-sm mb-2">{p.intro}</div>
+            {p.contact && (
+              <div className="text-xs text-neutral-500 mb-2">聯絡：{p.contact}</div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => approvePost(p.id)}
+                className="px-3 py-1.5 rounded-xl border bg-green-600 text-white"
+              >
+                通過
+              </button>
+              <button
+                onClick={() => deletePost(p.id)}
+                className="px-3 py-1.5 rounded-xl border text-red-600"
+              >
+                刪除
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
