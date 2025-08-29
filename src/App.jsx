@@ -299,7 +299,7 @@ function SubmitForm({ onSubmit }) {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label>聯絡方式（選填，IG / Threads / Email 擇一）</label>
+        <label>聯絡方式（選填，IG / Threads / Email...）</label>
         <input
           style={inputStyle}
           value={contact}
