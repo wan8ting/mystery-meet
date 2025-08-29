@@ -228,7 +228,7 @@ function SubmitForm({ onSubmit }) {
       alert("請勾選並同意守則");
       return;
     }
-    onSubmit({ nickname, age, contact, intro });
+    onSubmit({ nickname, age:ageNum, contact, intro });
     setNickname("");
     setAge("");
     setContact("");
