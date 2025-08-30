@@ -243,33 +243,28 @@ function SubmitForm({ onSubmit }) {
   e.preventDefault();
   setErr("");
 
-
-
+  // 必填檢查
   const contactTrimmed = contact.trim();
-  if (!contactTrimmed) {
-    setErr("請填寫聯絡方式");
-    return;
-  }
-
-  if (!agree) {
-    setErr("請勾選並同意守則");
-    return;
-  }
+  if (!contactTrimmed) { setErr("請填寫聯絡方式"); return; }
+  if (!agree) { setErr("請勾選並同意守則"); return; }
 
   setSubmitting(true);
   try {
+    // 注意：如果你已經拿掉「年齡」欄位，這裡就不要帶 age
     await onSubmit({
       nickname,
-      age: ageNum,
       contact: contactTrimmed,
-      intro
+      intro,
+      // file // 如果你之後要做上傳，再把 file 帶進來
     });
+    // 成功會在父層 alert 並導回首頁；這裡不需要再處理
   } catch (e) {
     setErr(e?.message || "送出失敗，請稍後再試");
   } finally {
     setSubmitting(false);
   }
 };
+
 
 
     setSubmitting(true);
