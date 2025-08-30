@@ -232,7 +232,6 @@ function Home() {
 function SubmitForm({ onSubmit }) {
   const MAX_INTRO_LEN = 200;
   const [nickname, setNickname] = useState("");
-  const [age, setAge] = useState("");
   const [contact, setContact] = useState("");
   const [intro, setIntro] = useState("");
   const [agree, setAgree] = useState(false);
@@ -244,11 +243,7 @@ function SubmitForm({ onSubmit }) {
   e.preventDefault();
   setErr("");
 
-  const ageNum = parseInt(age, 10);
-  if (Number.isNaN(ageNum) || ageNum < 16) {
-    setErr("年齡需滿 16 歲以上才能投稿");
-    return;
-  }
+
 
   const contactTrimmed = contact.trim();
   if (!contactTrimmed) {
@@ -279,7 +274,8 @@ function SubmitForm({ onSubmit }) {
 
     setSubmitting(true);
     try {
-     await onSubmit({ nickname, age: ageNum, gender, contact: contactTrimmed, intro, file });
+    await onSubmit({ nickname, contact: contactTrimmed, intro, file });
+
       // 成功會在父層 alert 並導回首頁；這裡不用再重置
     } catch (e) {
       // 會顯示更明確的錯誤，而不是看起來「沒反應」
@@ -325,18 +321,7 @@ function SubmitForm({ onSubmit }) {
         />
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <label>年齡（必填）</label>
-        <input
-          type="number"
-          style={inputStyle}
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          placeholder="未滿16勿填"
-          required
-          disabled={submitting}
-        />
-      </div>
+    
 
       <div style={{ marginBottom: 16 }}>
         <label>聯絡方式（必填，IG / Threads / Email...）</label>
@@ -447,7 +432,7 @@ function Posts({ posts, isAdmin, onDelete, loading }) {
           )}
 
           <p style={{ marginRight: isAdmin ? 80 : 0 }}>
-            <b>{p.nickname}</b>（{p.age} 歲）
+            <b>{p.nickname}</b>
           </p>
           {p.intro && <p style={{ whiteSpace: "pre-wrap" }}>{p.intro}</p>}
           {p.contact && (
