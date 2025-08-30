@@ -65,19 +65,17 @@ function App() {
 }, [route]);
 
 const fetchPosts = async () => {
+  setLoadingPosts(true);
   try {
-    setLoadingPosts(true); // ← 進入讀取中
     const q = query(
       collection(db, "posts"),
       where("approved", "==", true),
-      orderBy("createdAt", "desc") // ← 依建立時間由新到舊
+      orderBy("createdAt", "desc")
     );
-    const snap = await getDocs(q);
-    setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  } catch (e) {
-    console.error("fetchPosts error:", e);
+    const querySnapshot = await getDocs(q);
+    setPosts(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   } finally {
-    setLoadingPosts(false); // ← 結束讀取
+    setLoadingPosts(false);
   }
 };
 
@@ -143,16 +141,13 @@ const handleSubmit = async (data) => {
 
       {route === "#submit" && <SubmitForm onSubmit={handleSubmit} />}
 
-     {route === "#posts" && (
-  loadingPosts ? (
-    <div style={{ marginTop: 24, color: "#6B7280" }}>載入中…</div>
-  ) : (
-    <Posts
-      posts={posts}
-      isAdmin={isAdmin}
-      onDelete={handleDeletePublic}
-    />
-  )
+    {route === "#posts" && (
+  <Posts
+    posts={posts}
+    isAdmin={isAdmin}
+    onDelete={handleDeletePublic}
+    loading={loadingPosts}
+  />
 )}
     </Shell>
   );
@@ -386,8 +381,10 @@ function SubmitForm({ onSubmit }) {
 }
 
 /* ---------------- 公開投稿列表（含管理員刪除） ---------------- */
-function Posts({ posts, isAdmin, onDelete }) {
-  if (posts.length === 0) return <p>目前還沒有公開投稿，等等再來逛～</p>;
+function Posts({ posts, isAdmin, onDelete, loading }) {
+  if (loading) return <p>載入中…</p>;
+  if (!loading && posts.length === 0) return <p>目前還沒有公開投稿，等等再來逛～</p>;
+  // 下面維持原樣
 
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "left" }}>
