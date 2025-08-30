@@ -11,6 +11,7 @@ import {
   doc,
   serverTimestamp,
   deleteDoc,
+  orderBy
 } from "firebase/firestore";
 import {
   getAuth,
@@ -57,11 +58,15 @@ function App() {
     };
   }, []);
 
-  const fetchPosts = async () => {
-    const q = query(collection(db, "posts"), where("approved", "==", true));
-    const querySnapshot = await getDocs(q);
-    setPosts(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
+const fetchPosts = async () => {
+  const q = query(
+    collection(db, "posts"),
+    where("approved", "==", true),
+    orderBy("createdAt", "desc")   // 依建立時間「新到舊」
+  );
+  const querySnapshot = await getDocs(q);
+  setPosts(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+};
 
 const handleSubmit = async (data) => {
   try {
