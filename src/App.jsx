@@ -83,7 +83,6 @@ const handleSubmit = async (data) => {
   try {
     await addDoc(collection(db, "posts"), {
   nickname: data.nickname,
-  age: Number(data.age),
   contact: data.contact?.trim(),  // ← 一定要加 ()，才會得到修剪後的字串
   intro: data.intro,              // ← 前一行要有逗號
   approved: false,
