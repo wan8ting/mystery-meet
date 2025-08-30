@@ -84,7 +84,7 @@ const handleSubmit = async (data) => {
     await addDoc(collection(db, "posts"), {
       nickname: data.nickname,
       age: Number(data.age),
-      contact: data.contact?.trim() || null,
+      contact: data.contact?.trim(), || null,
       intro: data.intro,
       approved: false,
       reportsCount: 0,
