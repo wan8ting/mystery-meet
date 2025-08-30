@@ -248,19 +248,13 @@ function SubmitForm({ onSubmit }) {
     if (Number.isNaN(ageNum) || ageNum < 16) {
       setErr("年齡需滿 16 歲以上才能投稿");
       return;
-      if (!contact || !contact.trim()) {
-  alert("請填寫聯絡方式（IG / Threads / Email...）");
-  return;
-}
-    }
-    if (!agree) {
-      setErr("請勾選並同意守則");
-      return;
-    }
+      +const contactTrimmed = contact.trim();
++if (!contactTrimmed) { setErr("請填寫聯絡方式"); return; }
++if (!agree) { setErr("請勾選並同意守則"); return; }
 
     setSubmitting(true);
     try {
-      await onSubmit({ nickname, age: ageNum, contact, intro });
+     await onSubmit({ nickname, age: ageNum, gender, contact: contactTrimmed, intro, file });
       // 成功會在父層 alert 並導回首頁；這裡不用再重置
     } catch (e) {
       // 會顯示更明確的錯誤，而不是看起來「沒反應」
@@ -326,6 +320,7 @@ function SubmitForm({ onSubmit }) {
           value={contact}
           onChange={(e) => setContact(e.target.value)}
           placeholder="@your_ig 或 @your_threads 或 your@mail.com"
+          required
           disabled={submitting}
         />
       </div>
