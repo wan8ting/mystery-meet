@@ -44,6 +44,7 @@ function App() {
   const [route, setRoute] = useState(window.location.hash || "");
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
 
   const isAdmin =
     !!user && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
@@ -57,15 +58,27 @@ function App() {
       window.removeEventListener("hashchange", onHash);
     };
   }, []);
+  useEffect(() => {
+  if (route === "#posts") {
+    fetchPosts();
+  }
+}, [route]);
 
 const fetchPosts = async () => {
-  const q = query(
-    collection(db, "posts"),
-    where("approved", "==", true),
-    orderBy("createdAt", "desc")   // 依建立時間「新到舊」
-  );
-  const querySnapshot = await getDocs(q);
-  setPosts(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  try {
+    setLoadingPosts(true); // ← 進入讀取中
+    const q = query(
+      collection(db, "posts"),
+      where("approved", "==", true),
+      orderBy("createdAt", "desc") // ← 依建立時間由新到舊
+    );
+    const snap = await getDocs(q);
+    setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) {
+    console.error("fetchPosts error:", e);
+  } finally {
+    setLoadingPosts(false); // ← 結束讀取
+  }
 };
 
 const handleSubmit = async (data) => {
@@ -130,13 +143,17 @@ const handleSubmit = async (data) => {
 
       {route === "#submit" && <SubmitForm onSubmit={handleSubmit} />}
 
-      {route === "#posts" && (
-        <Posts
-          posts={posts}
-          isAdmin={isAdmin}
-          onDelete={handleDeletePublic}
-        />
-      )}
+     {route === "#posts" && (
+  loadingPosts ? (
+    <div style={{ marginTop: 24, color: "#6B7280" }}>載入中…</div>
+  ) : (
+    <Posts
+      posts={posts}
+      isAdmin={isAdmin}
+      onDelete={handleDeletePublic}
+    />
+  )
+)}
     </Shell>
   );
 }
