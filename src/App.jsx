@@ -80,6 +80,15 @@ function App() {
   const isAdmin =
     !!user && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
 
+    // 倒數計時：檢查是否超過截止時間
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const isOver = now >= COUNTDOWN_DEADLINE.getTime();
+
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
     const onHash = () => setRoute(window.location.hash || "");
@@ -165,6 +174,7 @@ const handleSubmit = async (data) => {
         <a href="#posts" style={navBtnBlue} onClick={fetchPosts}>
           自介專區
         </a>
+          {!isOver && (   // 👈 截止之後隱藏「我要自介」
         <a href="#submit" style={navBtnBlue}>
           我要自介
         </a>
