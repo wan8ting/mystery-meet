@@ -82,14 +82,14 @@ const fetchPosts = async () => {
 const handleSubmit = async (data) => {
   try {
     await addDoc(collection(db, "posts"), {
-      nickname: data.nickname,
-      age: Number(data.age),
-      contact: data.contact?.trim()
-      intro: data.intro,
-      approved: false,
-      reportsCount: 0,
-      createdAt: serverTimestamp(),
-    });
+  nickname: data.nickname,
+  age: Number(data.age),
+  contact: data.contact?.trim(),  // ← 一定要加 ()，才會得到修剪後的字串
+  intro: data.intro,              // ← 前一行要有逗號
+  approved: false,
+  reportsCount: 0,
+  createdAt: serverTimestamp(),
+});
     alert("投稿已送出，待審核通過後才會公開！");
     window.location.hash = ""; // 回首頁
     return true;
@@ -241,16 +241,41 @@ function SubmitForm({ onSubmit }) {
   const [err, setErr] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErr("");
+  e.preventDefault();
+  setErr("");
 
-    const ageNum = parseInt(age, 10);
-    if (Number.isNaN(ageNum) || ageNum < 16) {
-      setErr("年齡需滿 16 歲以上才能投稿");
-      return;
-      +const contactTrimmed = contact.trim();
-+if (!contactTrimmed) { setErr("請填寫聯絡方式"); return; }
-+if (!agree) { setErr("請勾選並同意守則"); return; }
+  const ageNum = parseInt(age, 10);
+  if (Number.isNaN(ageNum) || ageNum < 16) {
+    setErr("年齡需滿 16 歲以上才能投稿");
+    return;
+  }
+
+  const contactTrimmed = contact.trim();
+  if (!contactTrimmed) {
+    setErr("請填寫聯絡方式");
+    return;
+  }
+
+  if (!agree) {
+    setErr("請勾選並同意守則");
+    return;
+  }
+
+  setSubmitting(true);
+  try {
+    await onSubmit({
+      nickname,
+      age: ageNum,
+      contact: contactTrimmed,
+      intro
+    });
+  } catch (e) {
+    setErr(e?.message || "送出失敗，請稍後再試");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
     setSubmitting(true);
     try {
