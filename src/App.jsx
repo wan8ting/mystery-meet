@@ -84,7 +84,7 @@ const handleSubmit = async (data) => {
     await addDoc(collection(db, "posts"), {
       nickname: data.nickname,
       age: Number(data.age),
-      contact: data.contact?.trim() || null,
+      contact: data.contact?.trim()
       intro: data.intro,
       approved: false,
       reportsCount: 0,
@@ -248,6 +248,10 @@ function SubmitForm({ onSubmit }) {
     if (Number.isNaN(ageNum) || ageNum < 16) {
       setErr("年齡需滿 16 歲以上才能投稿");
       return;
+      if (!contact || !contact.trim()) {
+  alert("請填寫聯絡方式（IG / Threads / Email 擇一）");
+  return;
+}
     }
     if (!agree) {
       setErr("請勾選並同意守則");
@@ -316,7 +320,7 @@ function SubmitForm({ onSubmit }) {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label>聯絡方式（選填，IG / Threads / Email...）</label>
+        <label>聯絡方式（必填，IG / Threads / Email...）</label>
         <input
           style={inputStyle}
           value={contact}
