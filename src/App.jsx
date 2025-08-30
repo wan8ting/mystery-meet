@@ -249,7 +249,7 @@ function SubmitForm({ onSubmit }) {
       setErr("年齡需滿 16 歲以上才能投稿");
       return;
       if (!contact || !contact.trim()) {
-  alert("請填寫聯絡方式（IG / Threads / Email 擇一）");
+  alert("請填寫聯絡方式（IG / Threads / Email...）");
   return;
 }
     }
