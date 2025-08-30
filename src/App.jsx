@@ -241,30 +241,48 @@ function SubmitForm({ onSubmit }) {
   const [err, setErr] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErr("");
+  e.preventDefault();
+  setErr("");
 
-    const ageNum = parseInt(age, 10);
-    if (Number.isNaN(ageNum) || ageNum < 16) {
-      setErr("年齡需滿 16 歲以上才能投稿");
-      return;
-    }
-    if (!agree) {
-      setErr("請勾選並同意守則");
-      return;
-    }
+  const ageNum = parseInt(age, 10);
+  if (Number.isNaN(ageNum) || ageNum < 16) {
+    setErr("年齡需滿 16 歲以上才能投稿");
+    return;
+  }
 
-    setSubmitting(true);
-    try {
-      await onSubmit({ nickname, age: ageNum, contact, intro });
-      // 成功會在父層 alert 並導回首頁；這裡不用再重置
-    } catch (e) {
-      // 會顯示更明確的錯誤，而不是看起來「沒反應」
-      setErr(e?.message || "送出失敗，請稍後再試");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const nicknameTrimmed = nickname.trim();
+  if (!nicknameTrimmed || nicknameTrimmed.length > 40) {
+    setErr("稱呼需為 1~40 個字");
+    return;
+  }
+
+  const contactTrimmed = contact.trim();
+  if (contactTrimmed && contactTrimmed.length > 100) {
+    setErr("聯絡方式需在 100 個字以內");
+    return;
+  }
+
+  if (!agree) {
+    setErr("請勾選並同意守則");
+    return;
+  }
+
+  setSubmitting(true);
+  try {
+    await onSubmit({
+      nickname: nicknameTrimmed,
+      age: ageNum,
+      contact: contactTrimmed || null,
+      intro,
+    });
+    // 成功會在父層 alert 並導回首頁；這裡不用再重置
+  } catch (e) {
+    setErr(e?.message || "送出失敗，請稍後再試");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   const inputStyle = {
     width: "100%",
