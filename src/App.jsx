@@ -35,6 +35,37 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// 固定「台灣時間」的截止時間
+const COUNTDOWN_DEADLINE = new Date("2025-08-31T23:59:00+08:00");
+
+function Countdown({ target = COUNTDOWN_DEADLINE }) {
+  const [left, setLeft] = React.useState(target.getTime() - Date.now());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setLeft(target.getTime() - Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [target]);
+
+  if (left <= 0) return (
+    <div style={{ fontWeight: 700, marginTop: 4, marginBottom: 8 }}>
+      已結束
+    </div>
+  );
+
+  const sec = Math.floor(left / 1000);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+
+  return (
+    <div style={{ fontWeight: 700, marginTop: 4, marginBottom: 8 }}>
+      倒數 {days} 天 {hours} 小時 {minutes} 分 {seconds} 秒
+    </div>
+  );
+}
+
+
 /* 管理員白名單（用 Email 判斷） */
 const ADMIN_EMAILS = ["wan8ting@gmail.com"]; // 需要就增加
 
@@ -126,6 +157,9 @@ const handleSubmit = async (data) => {
       {/* 兩行標題 */}
       <HeaderTitle />
 
+        {/* 倒數計時 */}
+  <Countdown />
+      
       {/* 導覽按鈕（藍字圓角），不顯示「審核區」 */}
       <div style={navWrap}>
         <a href="#posts" style={navBtnBlue} onClick={fetchPosts}>
