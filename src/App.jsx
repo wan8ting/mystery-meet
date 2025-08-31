@@ -12,7 +12,6 @@ import {
   serverTimestamp,
   deleteDoc,
   orderBy
-  getCountFromServer 
 } from "firebase/firestore";
 import {
   getAuth,
@@ -502,60 +501,30 @@ function Posts({ posts, isAdmin, onDelete, loading }) {
 /* ---------------- 審核頁 ---------------- */
 function Review() {
   const [pending, setPending] = useState([]);
-  const [stats, setStats] = useState(null);
 
   const fetchPending = async () => {
     const q = query(collection(db, "posts"), where("approved", "==", false));
-    const snap = await getDocs(q);
-    setPending(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-  };
-
-  const fetchStats = async () => {
-    const allSnap = await getCountFromServer(collection(db, "posts"));
-    const approvedQ = query(collection(db, "posts"), where("approved", "==", true));
-    const approvedSnap = await getCountFromServer(approvedQ);
-    setStats({
-      total: allSnap.data().count,
-      approved: approvedSnap.data().count,
-    });
+    const querySnapshot = await getDocs(q);
+    setPending(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   };
 
   useEffect(() => {
-    // 進來就同時抓「待審核清單」與「統計數字」
     fetchPending();
-    fetchStats();
   }, []);
 
   const approvePost = async (id) => {
     await updateDoc(doc(db, "posts", id), { approved: true });
-    // 核准後同步刷新清單與統計
     fetchPending();
-    fetchStats();
   };
 
   const deletePost = async (id) => {
     await deleteDoc(doc(db, "posts", id));
-    // 刪除後同步刷新清單與統計
     fetchPending();
-    fetchStats();
   };
 
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "left" }}>
       <h4>待審核投稿</h4>
-
-      {/* 顯示統計（自動載入，仍保留手動更新按鈕） */}
-      <button onClick={fetchStats} style={{ marginBottom: 12 }}>
-        重新統計
-      </button>
-      {stats && (
-        <p style={{ marginBottom: 16 }}>
-          總投稿數：{stats.total} 筆<br />
-          已通過：{stats.approved} 筆<br />
-          待審核：{stats.total - stats.approved} 筆
-        </p>
-      )}
-
       {pending.length === 0 && <p>目前沒有待審核的投稿</p>}
       {pending.map((p) => (
         <div
