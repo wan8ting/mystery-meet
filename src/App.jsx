@@ -178,6 +178,7 @@ const handleSubmit = async (data) => {
         <a href="#submit" style={navBtnBlue}>
           我要自介
         </a>
+      )}
       </div>
 
       {/* 路由切換 */}
